@@ -8,6 +8,12 @@ const server = serve({
       Bun.file(import.meta.dir + "/pdf.worker.min.mjs")
     ),
 
+    // Serve images from the images directory
+    "/images/:filename": (req) => {
+      const filename = req.params.filename;
+      return new Response(Bun.file(import.meta.dir + "/images/" + filename));
+    },
+
     // Serve index.html for all unmatched routes.
     "/*": index,
 

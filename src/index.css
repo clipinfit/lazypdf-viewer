@@ -187,18 +187,6 @@ code {
 }
 
 /* PDF Viewer Styles */
-.pdf-viewer {
-  width: 100%;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  position: relative;
-  z-index: 1;
-}
-
 .pdf-controls {
   background: #1a1a1a;
   border: 2px solid #fbf0df;
@@ -261,20 +249,51 @@ code {
   min-width: 140px;
 }
 
+.pdf-viewer {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+.pdf-viewer-container-wrapper {
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 280px);
+}
+
 .pdf-canvas-container {
   background: #1a1a1a;
   border: 2px solid #fbf0df;
   border-radius: 12px;
   padding: 2rem;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
   overflow: auto;
-  max-height: calc(100vh - 280px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 }
 
-.pdf-canvas {
+.pdfViewer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: auto;
+  padding: 2rem;
+}
+
+.pdfViewer .page {
+  position: relative;
+  margin: 1rem auto;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
   border-radius: 4px;
   background: white;
