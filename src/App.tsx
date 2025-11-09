@@ -24,7 +24,7 @@ export function App() {
   const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
   const [pageNum, setPageNum] = useState(1);
   const [pageCount, setPageCount] = useState(0);
-  const [scale, setScale] = useState(1.5);
+  const [scale, setScale] = useState<string | number>("auto");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,6 +58,12 @@ export function App() {
       setPageNum(evt.pageNumber);
     });
 
+    // Listen to scale changes
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    eventBus.on("scalechanging", (evt: any) => {
+      setScale(evt.scale);
+    });
+
     // Load PDF document
     setLoading(true);
     setError(null);
@@ -69,8 +75,8 @@ export function App() {
         setPageCount(pdf.numPages);
         pdfViewer.setDocument(pdf);
         linkService.setDocument(pdf);
-        // Set initial scale
-        pdfViewer.currentScale = scale;
+        // Set initial scale to auto (fits page width)
+        pdfViewer.currentScaleValue = String(scale);
         setLoading(false);
       })
       .catch((err) => {
@@ -90,7 +96,11 @@ export function App() {
   // Update scale when changed
   useEffect(() => {
     if (viewerRef.current && pdfDoc) {
-      viewerRef.current.currentScale = scale;
+      if (typeof scale === "string") {
+        viewerRef.current.currentScaleValue = scale;
+      } else {
+        viewerRef.current.currentScale = scale;
+      }
     }
   }, [scale, pdfDoc]);
 
@@ -109,8 +119,21 @@ export function App() {
     if (pageNum < pageCount) setPageNum(pageNum + 1);
   };
 
-  const zoomIn = () => setScale(scale + 0.25);
-  const zoomOut = () => setScale(Math.max(0.5, scale - 0.25));
+  const zoomIn = () => {
+    if (viewerRef.current) {
+      const currentScale = viewerRef.current.currentScale;
+      viewerRef.current.currentScale = currentScale * 1.1;
+      setScale(viewerRef.current.currentScale);
+    }
+  };
+
+  const zoomOut = () => {
+    if (viewerRef.current) {
+      const currentScale = viewerRef.current.currentScale;
+      viewerRef.current.currentScale = currentScale * 0.9;
+      setScale(viewerRef.current.currentScale);
+    }
+  };
 
   return (
     <div className="pdf-viewer">
@@ -143,7 +166,12 @@ export function App() {
               <button type="button" onClick={zoomOut}>
                 Zoom Out
               </button>
-              <span>Scale: {(scale * 100).toFixed(0)}%</span>
+              <span>
+                Scale:{" "}
+                {typeof scale === "number"
+                  ? `${(scale * 100).toFixed(0)}%`
+                  : "Auto"}
+              </span>
               <button type="button" onClick={zoomIn}>
                 Zoom In
               </button>
