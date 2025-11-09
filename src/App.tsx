@@ -44,9 +44,10 @@ export function App() {
     const pdfViewer = new PDFViewer({
       container: container,
       eventBus: eventBus,
-      linkService: linkService,
+      linkService,
       textLayerMode: 2, // Enable text selection layer
       removePageBorders: true,
+      maxCanvasPixels: 33554432,
     });
 
     linkService.setViewer(pdfViewer);
@@ -110,6 +111,13 @@ export function App() {
       viewerRef.current.currentPageNumber = pageNum;
     }
   }, [pageNum]);
+
+  // Force update viewer when document is loaded
+  useEffect(() => {
+    if (viewerRef.current && pdfDoc) {
+      viewerRef.current.update();
+    }
+  }, [pdfDoc]);
 
   const goToPrevPage = () => {
     if (pageNum > 1) setPageNum(pageNum - 1);
