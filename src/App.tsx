@@ -187,11 +187,12 @@ export function App() {
           </>
         )}
       </div>
-      <div className="pdf-viewer-container-wrapper">
-        <div ref={viewerContainerRef} className="pdf-canvas-container">
-          <div className="pdfViewer" />
-        </div>
+
+      {/* <div className="pdf-viewer-container-wrapper"> */}
+      <div ref={viewerContainerRef} className="pdf-canvas-container">
+        <div className="pdfViewer" />
       </div>
+      {/* </div> */}
     </div>
   );
 }
