@@ -27,6 +27,8 @@ export function App() {
   const [scale, setScale] = useState<string | number>("auto");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const maxScaleRef = useRef<number | null>(null);
+  const containerWrapperRef = useRef<HTMLDivElement>(null);
 
   // Initialize PDF viewer
   useEffect(() => {
@@ -62,7 +64,16 @@ export function App() {
     // Listen to scale changes
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     eventBus.on("scalechanging", (evt: any) => {
-      setScale(evt.scale);
+      const newScale = evt.scale;
+      setScale(newScale);
+      // Track the maximum scale (the current rendered size)
+      // This becomes our maximum limit when resizing
+      // Only update max if it's a numeric scale (not "auto" string)
+      if (typeof newScale === "number") {
+        if (maxScaleRef.current === null || newScale > maxScaleRef.current) {
+          maxScaleRef.current = newScale;
+        }
+      }
     });
 
     // Load PDF document
@@ -78,6 +89,15 @@ export function App() {
         linkService.setDocument(pdf);
         // Set initial scale to auto (fits page width)
         pdfViewer.currentScaleValue = String(scale);
+        // Wait for initial render to capture the max scale
+        setTimeout(() => {
+          if (
+            pdfViewer.currentScale &&
+            typeof pdfViewer.currentScale === "number"
+          ) {
+            maxScaleRef.current = pdfViewer.currentScale;
+          }
+        }, 200);
         setLoading(false);
       })
       .catch((err) => {
@@ -118,6 +138,76 @@ export function App() {
       viewerRef.current.update();
     }
   }, [pdfDoc]);
+
+  // Handle window resize for automatic scaling
+  useEffect(() => {
+    if (!viewerRef.current || !pdfDoc || !containerWrapperRef.current) return;
+
+    const calculateAutoScale = () => {
+      const viewer = viewerRef.current;
+      const container = containerWrapperRef.current;
+      if (!viewer || !container) return;
+
+      // Get current page view using public API
+      const currentPageView = viewer.getPageView(pageNum - 1);
+      if (!currentPageView || !currentPageView.pdfPage) return;
+
+      // Get container dimensions (accounting for padding/borders)
+      const containerWidth = container.clientWidth;
+      const SCROLLBAR_PADDING = 40; // PDF.js default padding
+
+      // Get page dimensions from the page view
+      const pageWidth = currentPageView.width;
+      const currentPageScale = currentPageView.scale;
+
+      // Calculate scale needed to fit page width
+      const pageWidthScale =
+        ((containerWidth - SCROLLBAR_PADDING) / pageWidth) * currentPageScale;
+
+      // Cap at maximum scale (the current rendered size)
+      let finalScale = pageWidthScale;
+      if (
+        maxScaleRef.current !== null &&
+        pageWidthScale > maxScaleRef.current
+      ) {
+        finalScale = maxScaleRef.current;
+      }
+
+      // Apply the scale only if it's different enough
+      if (Math.abs(viewer.currentScale - finalScale) > 0.001) {
+        viewer.currentScale = finalScale;
+        setScale(finalScale);
+      }
+    };
+
+    const applyAutoScale = () => {
+      calculateAutoScale();
+      if (viewerRef.current) {
+        viewerRef.current.update();
+      }
+    };
+
+    const handleResize = () => {
+      applyAutoScale();
+    };
+
+    window.addEventListener("resize", handleResize);
+    // Also listen to container resize (in case of flexbox changes)
+    const resizeObserver = new ResizeObserver(() => {
+      applyAutoScale();
+    });
+    resizeObserver.observe(containerWrapperRef.current);
+
+    const rafId = requestAnimationFrame(() => {
+      applyAutoScale();
+    });
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener("resize", handleResize);
+      resizeObserver.disconnect();
+    };
+  }, [pdfDoc, pageNum]);
 
   const goToPrevPage = () => {
     if (pageNum > 1) setPageNum(pageNum - 1);
@@ -188,7 +278,7 @@ export function App() {
         )}
       </div>
 
-      <div className="pdf-viewer-container-wrapper">
+      <div ref={containerWrapperRef} className="pdf-viewer-container-wrapper">
         <div ref={viewerContainerRef} className="pdf-canvas-container">
           <div className="pdfViewer" />
         </div>
