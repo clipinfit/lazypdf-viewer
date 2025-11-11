@@ -10,30 +10,6 @@
   -webkit-font-smoothing: antialiased;
 }
 
-body {
-  margin: 0;
-  display: grid;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-  position: relative;
-  padding: 1.5rem;
-  background: radial-gradient(
-      circle at 20% 20%,
-      color-mix(in srgb, var(--accent) 25%, transparent),
-      transparent 60%
-    ),
-    radial-gradient(
-      circle at 80% 10%,
-      color-mix(in srgb, var(--primary) 15%, transparent),
-      transparent 55%
-    ),
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--background) 90%, var(--accent)),
-      color-mix(in srgb, var(--background) 75%, var(--accent))
-    );
-}
 /* PDF Viewer Styles */
 .pdf-toolbar {
   width: 100%;
