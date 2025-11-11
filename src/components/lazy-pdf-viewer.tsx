@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
+import "./styles.css";
 import "../../node_modules/pdfjs-dist/web/pdf_viewer.css";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
@@ -470,6 +471,8 @@ export function LazyPDFViewer({
   const viewerRef = useRef<PDFViewer | null>(null);
   const lazyDocRef = useRef<LazyPDFDocument | null>(null);
   const eventBusRef = useRef<EventBus | null>(null);
+  const maxScaleRef = useRef<number | null>(null);
+  const autoModeRef = useRef<boolean>(true);
 
   const [manifest, setManifest] = useState<Manifest | null>(null);
   const [loading, setLoading] = useState(true);
@@ -478,6 +481,20 @@ export function LazyPDFViewer({
   const [pageCount, setPageCount] = useState(0);
   const [scale, setScale] = useState<number>(1);
   const [scalePreset, setScalePreset] = useState<string>("auto");
+  const [viewerReady, setViewerReady] = useState<boolean>(false);
+
+  // Refs to avoid adding scale/scalePreset to heavy init effect deps
+  const scaleRef = useRef<number>(scale);
+  const scalePresetRef = useRef<string>(scalePreset);
+
+  useEffect(() => {
+    autoModeRef.current = scalePreset === "auto";
+    scalePresetRef.current = scalePreset;
+  }, [scalePreset]);
+
+  useEffect(() => {
+    scaleRef.current = scale;
+  }, [scale]);
 
   useEffect(() => {
     console.log("Loading manifest from:", manifestUrl);
@@ -524,8 +541,8 @@ export function LazyPDFViewer({
       eventBus,
       linkService,
       textLayerMode: 1,
-      removePageBorders: true,
       maxCanvasPixels: 33554432,
+      removePageBorders: true,
     });
 
     const handlePageChange = (evt: PageChangingEvent) => {
@@ -535,6 +552,18 @@ export function LazyPDFViewer({
     const handleScaleChange = (evt: ScaleChangingEvent) => {
       const newScale = evt.scale;
       setScale(newScale);
+
+      if (typeof newScale === "number") {
+        if (maxScaleRef.current === null || newScale > maxScaleRef.current) {
+          maxScaleRef.current = newScale;
+        }
+      }
+
+      // When in auto mode, keep the preset label on "auto" even if we set a numeric scale
+      if (autoModeRef.current) {
+        setScalePreset("auto");
+        return;
+      }
 
       const presetValue = evt.presetValue;
       if (presetValue && knownZoomValues.has(presetValue)) {
@@ -562,6 +591,9 @@ export function LazyPDFViewer({
       const viewer = viewerRef.current;
       if (!viewer) return;
 
+      console.log("pagesinit fired, marking viewerReady = true");
+      setViewerReady(true);
+
       // Prefer not to pre-render the next page in single-request mode to avoid
       // fetching multiple pages on initial load.
       // try {
@@ -578,11 +610,17 @@ export function LazyPDFViewer({
 
       // Apply initial scale on next frame to ensure layout is ready
       requestAnimationFrame(() => {
-        console.log("Applying initial scale after pagesinit:", scalePreset);
-        if (scalePreset === "custom") {
-          viewer.currentScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
+        console.log(
+          "Applying initial scale after pagesinit:",
+          scalePresetRef.current
+        );
+        if (scalePresetRef.current === "custom") {
+          viewer.currentScale = Math.min(
+            MAX_SCALE,
+            Math.max(MIN_SCALE, scaleRef.current)
+          );
         } else {
-          viewer.currentScaleValue = scalePreset;
+          viewer.currentScaleValue = scalePresetRef.current;
         }
       });
     };
@@ -649,6 +687,7 @@ export function LazyPDFViewer({
 
       lazyDocRef.current?.destroy();
       lazyDocRef.current = null;
+      setViewerReady(false);
     };
   }, [manifest, useRangeRequests]);
 
@@ -698,6 +737,103 @@ export function LazyPDFViewer({
       viewer.currentScaleValue = scalePreset;
     }
   }, [scale, scalePreset]);
+
+  // Auto-scale on container/window resize when preset is "auto"
+  useEffect(() => {
+    const LOG_PREFIX = "[AutoScale]";
+    const viewer = viewerRef.current;
+    const container = viewerContainerRef.current;
+    if (!viewer || !container) {
+      console.log(LOG_PREFIX, "skip: viewer or container not ready", {
+        viewerReady,
+        hasViewer: !!viewer,
+        hasContainer: !!container,
+      });
+      return;
+    }
+    if (scalePreset !== "auto") {
+      console.log(LOG_PREFIX, "skip: preset is not auto", { scalePreset });
+      return;
+    }
+    if (!viewerReady) {
+      console.log(LOG_PREFIX, "skip: viewer not ready yet", { viewerReady });
+      return;
+    }
+
+    console.log(LOG_PREFIX, "mount", {
+      preset: scalePreset,
+      pageNum,
+      currentScale: viewer.currentScale,
+      container: { w: container.clientWidth, h: container.clientHeight },
+      maxScale: maxScaleRef.current,
+    });
+
+    const calculateAutoScale = () => {
+      // Ask PDF.js to recompute the "auto" scale for current container size
+      const before = {
+        scale: viewer.currentScale,
+        containerW: container.clientWidth,
+        containerH: container.clientHeight,
+      };
+      console.log(LOG_PREFIX, "before", before);
+      viewer.currentScaleValue = "auto";
+      // Clamp to the max rendered scale to avoid blurry upscaling
+      if (
+        maxScaleRef.current !== null &&
+        viewer.currentScale > maxScaleRef.current
+      ) {
+        console.log(LOG_PREFIX, "clamp", {
+          requested: viewer.currentScale,
+          to: maxScaleRef.current,
+        });
+        viewer.currentScale = maxScaleRef.current;
+      }
+      setScale(viewer.currentScale);
+      // Keep label on "auto"
+      setScalePreset("auto");
+      console.log(LOG_PREFIX, "after", {
+        scale: viewer.currentScale,
+        containerW: container.clientWidth,
+      });
+    };
+
+    const applyAutoScale = () => {
+      calculateAutoScale();
+      viewer.update();
+    };
+
+    const handleResize = () => {
+      console.log(LOG_PREFIX, "window resize", {
+        innerW: window.innerWidth,
+        innerH: window.innerHeight,
+      });
+      applyAutoScale();
+    };
+
+    // Observe both window and container resizes
+    window.addEventListener("resize", handleResize);
+    const resizeObserver = new ResizeObserver(() => {
+      console.log(LOG_PREFIX, "container resize", {
+        w: container.clientWidth,
+        h: container.clientHeight,
+      });
+      applyAutoScale();
+    });
+    resizeObserver.observe(container);
+
+    // Initial apply
+    const rafId = requestAnimationFrame(() => {
+      console.log(LOG_PREFIX, "initial apply via RAF");
+      applyAutoScale();
+    });
+
+    return () => {
+      console.log(LOG_PREFIX, "cleanup");
+      cancelAnimationFrame(rafId);
+      window.removeEventListener("resize", handleResize);
+      resizeObserver.disconnect();
+    };
+  }, [scalePreset, viewerReady]);
 
   const goToPrevPage = () => {
     const viewer = viewerRef.current;
