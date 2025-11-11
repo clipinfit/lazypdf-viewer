@@ -88,10 +88,11 @@ body {
 }
 
 .pdf-viewer-container-wrapper {
-  position: relative;
+  position: absolute;
+  inset: 0;
+  top: 60px; /* Account for toolbar height */
   width: 100%;
-  flex: 1;
-  min-height: 0;
+  overflow: auto;
 }
 
 .pdf-canvas-container {

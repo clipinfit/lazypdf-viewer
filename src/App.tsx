@@ -1,11 +1,19 @@
-import { PDFViewerComponent } from "@/components/pdf-viewer";
+// import { PDFViewerComponent } from "@/components/pdf-viewer";
+import { LazyPDFViewer } from "@/components/lazy-pdf-viewer";
 import "./index.css";
 
-const PDF_URL =
-  "https://pub-513161e404dd4d40812c46297917c1ad.r2.dev/368_pages_276MB.pdf";
+// const PDF_URL =
+//   "https://pub-513161e404dd4d40812c46297917c1ad.r2.dev/368_pages_276MB.pdf";
+
+const MANIFEST_URL =
+  "https://pub-513161e404dd4d40812c46297917c1ad.r2.dev/docs/94430318-16c8-4f67-b735-7297299ced55/manifest.json";
 
 export function App() {
-  return <PDFViewerComponent pdfUrl={PDF_URL} />;
+  // Use the lazy viewer with manifest for better performance
+  // To use the traditional full-PDF viewer, uncomment the imports above and use:
+  // return <PDFViewerComponent pdfUrl={PDF_URL} />;
+
+  return <LazyPDFViewer manifestUrl={MANIFEST_URL} />;
 }
 
 export default App;

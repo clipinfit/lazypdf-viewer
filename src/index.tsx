@@ -3,6 +3,7 @@ import index from "./index.html";
 import sj from "./sj.html";
 
 const server = serve({
+  port: 8082,
   routes: {
     // Serve the PDF.js worker file as a static file
     "/pdf.worker.min.mjs": new Response(
