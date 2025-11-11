@@ -44,7 +44,7 @@ body {
   justify-content: space-between;
   gap: 1rem;
   padding: 0.75rem 1rem;
-  background: color-mix(in srgb, var(--card) 95%, transparent);
+  background: color-mix(in srgb, var(--card) 25%, transparent);
   border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
   border-radius: calc(var(--radius-md));
   backdrop-filter: blur(8px);
