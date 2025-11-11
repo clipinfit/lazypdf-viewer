@@ -3,6 +3,7 @@ import type {
   PDFDocumentProxy,
   PDFPageProxy,
   RefProxy,
+  DocumentInitParameters,
 } from "pdfjs-dist/types/src/display/api";
 import { ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist";
@@ -48,10 +49,17 @@ const ZOOM_PERCENTAGE_OPTIONS = [
 const MAX_SCALE = 5;
 const MIN_SCALE = 0.1;
 
-const LOAD_OPTIONS = {
+const CHUNKED_LOAD_OPTIONS: DocumentInitParameters = {
   disableAutoFetch: true,
   disableStream: false,
+  disableRange: false,
   rangeChunkSize: 65536,
+};
+
+const SINGLE_REQUEST_LOAD_OPTIONS: DocumentInitParameters = {
+  disableAutoFetch: true,
+  disableStream: true,
+  disableRange: true,
 };
 
 type ManifestPage = {
@@ -84,6 +92,7 @@ const refKey = (ref: RefProxy | null | undefined): string | null => {
 class LazyPDFDocument {
   private manifest: Manifest;
   private pageDocCache = new Map<number, PDFDocumentProxy>();
+  private pageDocLoading = new Map<number, Promise<PDFDocumentProxy>>();
   private pageProxyCache = new Map<number, PDFPageProxy>();
   private refToPageMap = new Map<string, number>();
   private namedDestinations = new Map<string, NamedDestination>();
@@ -98,10 +107,12 @@ class LazyPDFDocument {
     addHighlightHCMFilter: () => "none",
   };
   private optionalContentConfigPromiseCache = new Map<string, Promise<any>>();
+  private loadOptions: DocumentInitParameters;
 
-  constructor(manifest: Manifest) {
+  constructor(manifest: Manifest, loadOptions: DocumentInitParameters) {
     this.manifest = manifest;
     this._fingerprints = [manifest.docId, null];
+    this.loadOptions = loadOptions;
   }
 
   get numPages(): number {
@@ -121,7 +132,7 @@ class LazyPDFDocument {
   }
 
   get loadingParams() {
-    return LOAD_OPTIONS;
+    return this.loadOptions;
   }
 
   get isPureXfa(): boolean {
@@ -346,11 +357,28 @@ class LazyPDFDocument {
       return doc;
     }
 
-    const loadingTask = pdfjsLib.getDocument({ url: pdfUrl, ...LOAD_OPTIONS });
-    doc = await loadingTask.promise;
-    this.pageDocCache.set(pageNumber, doc);
-    await this.ensureDestinationsForPage(pageNumber, pdfUrl, doc);
-    return doc;
+    const inFlight = this.pageDocLoading.get(pageNumber);
+    if (inFlight) {
+      return inFlight;
+    }
+
+    const promise = (async () => {
+      const loadingTask = pdfjsLib.getDocument({
+        url: pdfUrl,
+        ...this.loadOptions,
+      });
+      const loadedDoc = await loadingTask.promise;
+      this.pageDocCache.set(pageNumber, loadedDoc);
+      try {
+        await this.ensureDestinationsForPage(pageNumber, pdfUrl, loadedDoc);
+      } finally {
+        this.pageDocLoading.delete(pageNumber);
+      }
+      return loadedDoc;
+    })();
+
+    this.pageDocLoading.set(pageNumber, promise);
+    return promise;
   }
 
   private async ensureDestinationsForPage(
@@ -394,6 +422,7 @@ class LazyPDFDocument {
 
 interface LazyPDFViewerProps {
   manifestUrl: string;
+  useRangeRequests?: boolean;
 }
 
 type PageChangingEvent = {
@@ -404,8 +433,39 @@ type ScaleChangingEvent = {
   scale: number;
   presetValue?: string;
 };
+const percentageValues = new Set(
+  ZOOM_PERCENTAGE_OPTIONS.map((item) =>
+    Number.parseFloat(item.value).toFixed(2)
+  )
+);
 
-export function LazyPDFViewer({ manifestUrl }: LazyPDFViewerProps) {
+const knownZoomValues = new Set<string>([
+  ...ZOOM_PRESET_OPTIONS.map((option) => option.value),
+  ...ZOOM_PERCENTAGE_OPTIONS.map((option) => option.value),
+  "custom",
+]);
+
+/**
+ * Calculates the next zoom scale by rounding to the nearest 10% and adjusting by 10%.
+ * @param currentScale - The current zoom scale (e.g., 1.15 for 115%)
+ * @param direction - 1 for zoom in, -1 for zoom out
+ * @returns The next zoom scale clamped between MIN_SCALE and MAX_SCALE
+ */
+function calculateNextZoomScale(
+  currentScale: number,
+  direction: 1 | -1
+): number {
+  // Convert current scale to percentage, round to nearest 10, adjust by 10, convert back
+  const currentPercent = currentScale * 100;
+  const roundedPercent = Math.round(currentPercent / 10) * 10;
+  const nextPercent = roundedPercent + direction * 10;
+  return Math.min(MAX_SCALE, Math.max(MIN_SCALE, nextPercent / 100));
+}
+
+export function LazyPDFViewer({
+  manifestUrl,
+  useRangeRequests = false,
+}: LazyPDFViewerProps) {
   const viewerContainerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<PDFViewer | null>(null);
   const lazyDocRef = useRef<LazyPDFDocument | null>(null);
@@ -418,26 +478,6 @@ export function LazyPDFViewer({ manifestUrl }: LazyPDFViewerProps) {
   const [pageCount, setPageCount] = useState(0);
   const [scale, setScale] = useState<number>(1);
   const [scalePreset, setScalePreset] = useState<string>("auto");
-
-  const percentageValues = useMemo(
-    () =>
-      new Set(
-        ZOOM_PERCENTAGE_OPTIONS.map((item) =>
-          Number.parseFloat(item.value).toFixed(2)
-        )
-      ),
-    []
-  );
-
-  const knownZoomValues = useMemo(
-    () =>
-      new Set<string>([
-        ...ZOOM_PRESET_OPTIONS.map((option) => option.value),
-        ...ZOOM_PERCENTAGE_OPTIONS.map((option) => option.value),
-        "custom",
-      ]),
-    []
-  );
 
   useEffect(() => {
     console.log("Loading manifest from:", manifestUrl);
@@ -483,7 +523,7 @@ export function LazyPDFViewer({ manifestUrl }: LazyPDFViewerProps) {
       container,
       eventBus,
       linkService,
-      textLayerMode: 2,
+      textLayerMode: 1,
       removePageBorders: true,
       maxCanvasPixels: 33554432,
     });
@@ -521,6 +561,21 @@ export function LazyPDFViewer({ manifestUrl }: LazyPDFViewerProps) {
     const handlePagesInit = () => {
       const viewer = viewerRef.current;
       if (!viewer) return;
+
+      // Prefer not to pre-render the next page in single-request mode to avoid
+      // fetching multiple pages on initial load.
+      // try {
+      //   const rq =
+      //     (viewer as unknown as { _pdfRenderingQueue?: any })
+      //       ._pdfRenderingQueue ??
+      //     (viewer as unknown as { renderingQueue?: any }).renderingQueue;
+      //   if (rq && typeof rq === "object") {
+      //     rq.preRenderExtraPage = false;
+      //   }
+      // } catch {
+      //   // ignore if internals change
+      // }
+
       // Apply initial scale on next frame to ensure layout is ready
       requestAnimationFrame(() => {
         console.log("Applying initial scale after pagesinit:", scalePreset);
@@ -547,7 +602,10 @@ export function LazyPDFViewer({ manifestUrl }: LazyPDFViewerProps) {
     viewerRef.current = pdfViewer;
     eventBusRef.current = eventBus;
 
-    const lazyDoc = new LazyPDFDocument(manifest);
+    const lazyDoc = new LazyPDFDocument(
+      manifest,
+      useRangeRequests ? CHUNKED_LOAD_OPTIONS : SINGLE_REQUEST_LOAD_OPTIONS
+    );
     lazyDocRef.current = lazyDoc;
 
     let cancelled = false;
@@ -592,7 +650,7 @@ export function LazyPDFViewer({ manifestUrl }: LazyPDFViewerProps) {
       lazyDocRef.current?.destroy();
       lazyDocRef.current = null;
     };
-  }, [manifest]);
+  }, [manifest, useRangeRequests]);
 
   // Cleanup effect
   useEffect(() => {
@@ -658,7 +716,7 @@ export function LazyPDFViewer({ manifestUrl }: LazyPDFViewerProps) {
   const zoomIn = () => {
     const viewer = viewerRef.current;
     if (!viewer) return;
-    const nextScale = Math.min(MAX_SCALE, viewer.currentScale + 0.1);
+    const nextScale = calculateNextZoomScale(viewer.currentScale, 1);
     viewer.currentScale = nextScale;
     setScalePreset("custom");
     setScale(nextScale);
@@ -667,7 +725,7 @@ export function LazyPDFViewer({ manifestUrl }: LazyPDFViewerProps) {
   const zoomOut = () => {
     const viewer = viewerRef.current;
     if (!viewer) return;
-    const nextScale = Math.max(MIN_SCALE, viewer.currentScale - 0.1);
+    const nextScale = calculateNextZoomScale(viewer.currentScale, -1);
     viewer.currentScale = nextScale;
     setScalePreset("custom");
     setScale(nextScale);
