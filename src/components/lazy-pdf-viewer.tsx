@@ -63,21 +63,17 @@ const SINGLE_REQUEST_LOAD_OPTIONS: DocumentInitParameters = {
   disableRange: true,
 };
 
-type ManifestPage = {
+type LazyPDFPage = {
   n: number;
-  w: number;
-  h: number;
   pdfUrl: string;
 };
 
-type Manifest = {
+export type LazyPDFDocumentData = {
   docId: string;
   filename: string;
   pageCount: number;
-  recommendedMaxWidth?: number;
   createdAt?: string;
-  originalUrl?: string;
-  pages: ManifestPage[];
+  pages: LazyPDFPage[];
 };
 
 type NamedDestination = {
@@ -91,7 +87,7 @@ const refKey = (ref: RefProxy | null | undefined): string | null => {
 };
 
 class LazyPDFDocument {
-  private manifest: Manifest;
+  private documentData: LazyPDFDocumentData;
   private pageDocCache = new Map<number, PDFDocumentProxy>();
   private pageDocLoading = new Map<number, Promise<PDFDocumentProxy>>();
   private pageProxyCache = new Map<number, PDFPageProxy>();
@@ -113,14 +109,17 @@ class LazyPDFDocument {
   >();
   private loadOptions: DocumentInitParameters;
 
-  constructor(manifest: Manifest, loadOptions: DocumentInitParameters) {
-    this.manifest = manifest;
-    this._fingerprints = [manifest.docId, null];
+  constructor(
+    documentData: LazyPDFDocumentData,
+    loadOptions: DocumentInitParameters
+  ) {
+    this.documentData = documentData;
+    this._fingerprints = [documentData.docId, null];
     this.loadOptions = loadOptions;
   }
 
   get numPages(): number {
-    return this.manifest.pageCount;
+    return this.documentData.pageCount;
   }
 
   get fingerprints(): [string, string | null] {
@@ -153,15 +152,12 @@ class LazyPDFDocument {
       return cachedPage;
     }
 
-    const manifestEntry = this.manifest.pages[pageNumber - 1];
-    if (!manifestEntry) {
+    const pageData = this.documentData.pages[pageNumber - 1];
+    if (!pageData) {
       throw new Error(`Page ${pageNumber} not found in manifest`);
     }
 
-    const doc = await this.loadDocumentForPage(
-      pageNumber,
-      manifestEntry.pdfUrl,
-    );
+    const doc = await this.loadDocumentForPage(pageNumber, pageData.pdfUrl);
     const page = await doc.getPage(1);
 
     // Store the page reference for internal link resolution
@@ -186,7 +182,7 @@ class LazyPDFDocument {
       return cached - 1;
     }
 
-    for (const { n, pdfUrl } of this.manifest.pages) {
+    for (const { n, pdfUrl } of this.documentData.pages) {
       await this.loadDocumentForPage(n, pdfUrl);
       const mapped = this.refToPageMap.get(key);
       if (mapped !== undefined) {
@@ -217,7 +213,7 @@ class LazyPDFDocument {
       return cachedDest.dest;
     }
 
-    for (const { n, pdfUrl } of this.manifest.pages) {
+    for (const { n, pdfUrl } of this.documentData.pages) {
       await this.ensureDestinationsForPage(n, pdfUrl);
       const found = this.namedDestinations.get(name);
       if (found) {
@@ -243,17 +239,17 @@ class LazyPDFDocument {
   async getMetadata() {
     return {
       info: {
-        Title: this.manifest.filename,
+        Title: this.documentData.filename,
         Author: "",
         Subject: "",
         Keywords: "",
         Creator: "",
         Producer: "",
-        CreationDate: this.manifest.createdAt || "",
+        CreationDate: this.documentData.createdAt || "",
         ModDate: "",
       },
       metadata: null,
-      contentDispositionFilename: this.manifest.filename,
+      contentDispositionFilename: this.documentData.filename,
       contentLength: null,
     };
   }
@@ -356,7 +352,7 @@ class LazyPDFDocument {
 
   private async loadDocumentForPage(
     pageNumber: number,
-    pdfUrl: string,
+    pdfUrl: string
   ): Promise<PDFDocumentProxy> {
     const doc = this.pageDocCache.get(pageNumber);
     if (doc) {
@@ -390,7 +386,7 @@ class LazyPDFDocument {
   private async ensureDestinationsForPage(
     pageNumber: number,
     pdfUrl: string,
-    doc?: PDFDocumentProxy,
+    doc?: PDFDocumentProxy
   ): Promise<void> {
     if (this.scannedDestPages.has(pageNumber)) {
       return;
@@ -427,7 +423,7 @@ class LazyPDFDocument {
 }
 
 interface LazyPDFViewerProps {
-  manifestUrl: string;
+  document: LazyPDFDocumentData | null;
   useRangeRequests?: boolean;
 }
 
@@ -441,8 +437,8 @@ type ScaleChangingEvent = {
 };
 const percentageValues = new Set(
   ZOOM_PERCENTAGE_OPTIONS.map((item) =>
-    Number.parseFloat(item.value).toFixed(2),
-  ),
+    Number.parseFloat(item.value).toFixed(2)
+  )
 );
 
 const knownZoomValues = new Set<string>([
@@ -459,7 +455,7 @@ const knownZoomValues = new Set<string>([
  */
 function calculateNextZoomScale(
   currentScale: number,
-  direction: 1 | -1,
+  direction: 1 | -1
 ): number {
   // Convert current scale to percentage, round to nearest 10, adjust by 10, convert back
   const currentPercent = currentScale * 100;
@@ -469,7 +465,7 @@ function calculateNextZoomScale(
 }
 
 export function LazyPDFViewer({
-  manifestUrl,
+  document,
   useRangeRequests = false,
 }: LazyPDFViewerProps) {
   const viewerContainerRef = useRef<HTMLDivElement>(null);
@@ -479,8 +475,7 @@ export function LazyPDFViewer({
   const maxScaleRef = useRef<number | null>(null);
   const autoModeRef = useRef<boolean>(true);
 
-  const [manifest, setManifest] = useState<Manifest | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pageNum, setPageNum] = useState(1);
   const [pageCount, setPageCount] = useState(0);
@@ -502,32 +497,22 @@ export function LazyPDFViewer({
   }, [scale]);
 
   useEffect(() => {
-    console.log("Loading manifest from:", manifestUrl);
+    if (!document) {
+      setPageCount(0);
+      setPageNum(1);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
-
-    fetch(manifestUrl)
-      .then((res) => {
-        console.log("Manifest response:", res.status);
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        return res.json();
-      })
-      .then((data: Manifest) => {
-        console.log("Manifest loaded:", data);
-        setManifest(data);
-        setPageCount(data.pageCount);
-        setPageNum(1);
-      })
-      .catch((err) => {
-        console.error("Failed to load manifest:", err);
-        setError(err?.message || "Failed to load manifest");
-        setLoading(false);
-      });
-  }, [manifestUrl]);
+    setPageCount(document.pageCount);
+    setPageNum(1);
+  }, [document]);
 
   useEffect(() => {
-    if (!manifest) {
-      console.log("Skipping viewer init - no manifest yet");
+    if (!document) {
+      console.log("Skipping viewer init - no document yet");
       return;
     }
 
@@ -578,7 +563,7 @@ export function LazyPDFViewer({
         if (percentageValues.has(normalizedValue)) {
           const matched = ZOOM_PERCENTAGE_OPTIONS.find(
             (option) =>
-              Number.parseFloat(option.value).toFixed(2) === normalizedValue,
+              Number.parseFloat(option.value).toFixed(2) === normalizedValue
           );
           setScalePreset(matched?.value ?? "custom");
         } else {
@@ -617,12 +602,12 @@ export function LazyPDFViewer({
       requestAnimationFrame(() => {
         console.log(
           "Applying initial scale after pagesinit:",
-          scalePresetRef.current,
+          scalePresetRef.current
         );
         if (scalePresetRef.current === "custom") {
           viewer.currentScale = Math.min(
             MAX_SCALE,
-            Math.max(MIN_SCALE, scaleRef.current),
+            Math.max(MIN_SCALE, scaleRef.current)
           );
         } else {
           viewer.currentScaleValue = scalePresetRef.current;
@@ -646,8 +631,8 @@ export function LazyPDFViewer({
     eventBusRef.current = eventBus;
 
     const lazyDoc = new LazyPDFDocument(
-      manifest,
-      useRangeRequests ? CHUNKED_LOAD_OPTIONS : SINGLE_REQUEST_LOAD_OPTIONS,
+      document,
+      useRangeRequests ? CHUNKED_LOAD_OPTIONS : SINGLE_REQUEST_LOAD_OPTIONS
     );
     lazyDocRef.current = lazyDoc;
 
@@ -694,7 +679,7 @@ export function LazyPDFViewer({
       lazyDocRef.current = null;
       setViewerReady(false);
     };
-  }, [manifest, useRangeRequests]);
+  }, [document, useRangeRequests]);
 
   // Cleanup effect
   useEffect(() => {
@@ -725,10 +710,10 @@ export function LazyPDFViewer({
   }, []);
 
   useEffect(() => {
-    if (viewerRef.current && manifest) {
+    if (viewerRef.current && document) {
       viewerRef.current.update();
     }
-  }, [manifest]);
+  }, [document]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -910,11 +895,11 @@ export function LazyPDFViewer({
         {loading && (
           <div className="flex items-center justify-center w-full gap-4">
             <Progress value={undefined} className="w-64" />
-            <span className="text-sm">Loading manifest...</span>
+            <span className="text-sm">Loading document...</span>
           </div>
         )}
         {error && <p className="error text-red-600">Error: {error}</p>}
-        {!loading && !error && manifest && (
+        {!loading && !error && document && (
           <>
             {/* Left section: Navigation controls */}
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -1005,4 +990,3 @@ export function LazyPDFViewer({
     </div>
   );
 }
-
