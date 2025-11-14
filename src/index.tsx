@@ -25,10 +25,13 @@ const server = serve({
       return new Response(manifestFile);
     },
 
-    // Serve documents/manifest.json (alternative path)
-    "/documents/manifest.json": async () => {
-      const manifestFile = Bun.file(DOCUMENTS_DIR + "/manifest.json");
-      return new Response(manifestFile);
+    "/original.pdf": async () => {
+      const pdfFile = Bun.file(DOCUMENTS_DIR + "/original.pdf");
+      return new Response(pdfFile, {
+        headers: {
+          "Content-Type": "application/pdf",
+        },
+      });
     },
 
     // Serve PDF pages - e.g., /pages/1.pdf
