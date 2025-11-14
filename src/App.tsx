@@ -75,17 +75,15 @@ export function App() {
     };
   }, []);
 
-  const Viewer = () => MODE === "single" ? (
-    <PDFViewerComponent pdfUrl={PDF_URL} />
-  ) : MODE === "lazy" && documentData ? (
-    <LazyPDFViewer document={documentData} />
-  ) : null;
-
   return (
     <div className="flex flex-col items-center gap-4 p-4">
       {loading && <p>Loading document manifest...</p>}
       {error && <p className="text-red-600">Error: {error}</p>}
-      <Viewer />
+      {MODE === "single" ? (
+        <PDFViewerComponent pdfUrl={PDF_URL} />
+      ) : MODE === "lazy" && documentData ? (
+        <LazyPDFViewer document={documentData} />
+      ) : null}
     </div>
   );
 }
