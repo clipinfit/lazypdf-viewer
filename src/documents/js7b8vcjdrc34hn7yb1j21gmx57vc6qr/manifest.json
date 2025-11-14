@@ -1,0 +1,101 @@
+{
+  "documentId": "js7b8vcjdrc34hn7yb1j21gmx57vc6qr",
+  "filename": "js7b8vcjdrc34hn7yb1j21gmx57vc6qr.pdf",
+  "pageCount": 7,
+  "recommendedMaxWidth": 946,
+  "createdAt": "2025-11-14T14:16:33Z",
+  "originalUrl": "original.pdf",
+  "pages": [
+    {
+      "n": 1,
+      "w": 595,
+      "h": 842,
+      "pdfUrl": "pages/1.pdf",
+      "thumbUrl": "thumbs/1.png",
+      "text": {
+        "hasText": true,
+        "charCount": 375,
+        "source": "native"
+      },
+      "textUrl": "text/1.txt"
+    },
+    {
+      "n": 2,
+      "w": 595,
+      "h": 842,
+      "pdfUrl": "pages/2.pdf",
+      "thumbUrl": "thumbs/2.png",
+      "text": {
+        "hasText": true,
+        "charCount": 1617,
+        "source": "native"
+      },
+      "textUrl": "text/2.txt"
+    },
+    {
+      "n": 3,
+      "w": 595,
+      "h": 842,
+      "pdfUrl": "pages/3.pdf",
+      "thumbUrl": "thumbs/3.png",
+      "text": {
+        "hasText": true,
+        "charCount": 1170,
+        "source": "native"
+      },
+      "textUrl": "text/3.txt"
+    },
+    {
+      "n": 4,
+      "w": 595,
+      "h": 842,
+      "pdfUrl": "pages/4.pdf",
+      "thumbUrl": "thumbs/4.png",
+      "text": {
+        "hasText": true,
+        "charCount": 1164,
+        "source": "native"
+      },
+      "textUrl": "text/4.txt"
+    },
+    {
+      "n": 5,
+      "w": 595,
+      "h": 842,
+      "pdfUrl": "pages/5.pdf",
+      "thumbUrl": "thumbs/5.png",
+      "text": {
+        "hasText": true,
+        "charCount": 1211,
+        "source": "native"
+      },
+      "textUrl": "text/5.txt"
+    },
+    {
+      "n": 6,
+      "w": 595,
+      "h": 842,
+      "pdfUrl": "pages/6.pdf",
+      "thumbUrl": "thumbs/6.png",
+      "text": {
+        "hasText": true,
+        "charCount": 97,
+        "source": "native"
+      },
+      "textUrl": "text/6.txt"
+    },
+    {
+      "n": 7,
+      "w": 595,
+      "h": 842,
+      "pdfUrl": "pages/7.pdf",
+      "thumbUrl": "thumbs/7.png",
+      "text": {
+        "hasText": true,
+        "charCount": 271,
+        "source": "native"
+      },
+      "textUrl": "text/7.txt"
+    }
+  ]
+}

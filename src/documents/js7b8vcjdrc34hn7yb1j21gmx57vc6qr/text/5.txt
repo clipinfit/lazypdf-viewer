@@ -1,0 +1,70 @@
+Página 10 
+ 
+¿QUÉ RECURSOS UTILIZA? 
+Gracias al desarrollo de la tecnología, en la actua
+lidad se cuenta con 
+métodos para la descripción e instrumentos de medic
+ión del movimiento del 
+cuerpo humano; el uso de éstos depende de qué y cóm
+o se 
+quiera medir: 
+
+ 
+El 
+goniómetro
+ sirve para medir la amplitud de los 
+segmentos corporales que conforman una 
+articulación.
+ 
+ 
+
+ 
+El 
+acelerómetro
+ emite señales usualmente analógicas y fácilmente 
+digitalizables. 
+
+ 
+El 
+electromiógrafo
+ detecta, mediante electrodos 
+(cutáneos o intramusculares), la actividad muscular
+ de 
+determinados músculos.
+ 
+ 
+
+ 
+Las 
+plataformas de fuerza
+ dividen las fuerzas que actúan 
+sobre ellas en tres direcciones espaciales.
+ 
+ 
+
+ 
+Los 
+dinamómetros
+ 
+registran el valor de 
+las torcas en la 
+rotación de segmentos 
+en las diferentes 
+articulaciones. 
+
+ 
+La 
+videografía
+ provee 
+los cuadros de video 
+digitalizados con información de la proyección de s
+ecuencias de 
+movimientos ejecutados.
+ 
+ 
+Para reconstruir la información 
+tridimensional de imágenes planas de dos 
+dimensiones captadas con cámaras de 
+video, se utilizan varias cámaras viendo al mismo o
+bjetivo, y un 
+algoritmo para una reconstrucción fotogramétrica.

@@ -1,6 +1,9 @@
 import { serve } from "bun";
 import index from "./index.html";
-import sj from "./sj.html";
+
+// Document ID - can be made configurable or read from environment
+const DOCUMENT_ID = "js7b8vcjdrc34hn7yb1j21gmx57vc6qr";
+const DOCUMENTS_DIR = import.meta.dir + "/documents/" + DOCUMENT_ID;
 
 const server = serve({
   port: 8082,
@@ -16,7 +19,40 @@ const server = serve({
       return new Response(Bun.file(import.meta.dir + "/images/" + filename));
     },
 
-    // Serve index.html for all unmatched routes.
+    // Serve manifest.json
+    "/manifest.json": async () => {
+      const manifestFile = Bun.file(DOCUMENTS_DIR + "/manifest.json");
+      return new Response(manifestFile);
+    },
+
+    // Serve documents/manifest.json (alternative path)
+    "/documents/manifest.json": async () => {
+      const manifestFile = Bun.file(DOCUMENTS_DIR + "/manifest.json");
+      return new Response(manifestFile);
+    },
+
+    // Serve PDF pages - e.g., /pages/1.pdf
+    // Use a function route to handle the path matching manually
+    "/pages/*": async (req) => {
+      // Extract page number from URL pathname (handles /pages/1.pdf)
+      const urlPath = new URL(req.url).pathname;
+      const match = urlPath.match(/\/pages\/(\d+)\.pdf$/);
+      if (!match) {
+        return new Response("Invalid page URL", { status: 400 });
+      }
+      const pageNum = match[1];
+      const pageFile = Bun.file(DOCUMENTS_DIR + "/pages/" + pageNum + ".pdf");
+      if (await pageFile.exists()) {
+        return new Response(pageFile, {
+          headers: {
+            "Content-Type": "application/pdf",
+          },
+        });
+      }
+      return new Response("Page not found", { status: 404 });
+    },
+
+    // Serve index.html for all unmatched routes
     "/*": index,
   },
 

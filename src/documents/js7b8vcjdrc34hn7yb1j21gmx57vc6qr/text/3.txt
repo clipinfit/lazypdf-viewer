@@ -1,0 +1,47 @@
+Página 3 
+ 
+sobre el cuerpo humano y así saber las fuerzas que 
+es preciso aplicar para 
+contrarrestarlas. Así como las posiciones más idóne
+as para que la resistencia 
+sea menor. 
+ 
+          Ej.: la fuerza de la gravedad Fg se desco
+mpone en dos vectores: Fy, Fx. 
+Fy es la incidencia que tiene el peso del esquiador
+ sobre el suelo y es 
+contrarrestada por la fuerza de reacción del suelo 
+Fn. 
+Por tanto Fx es la que posibilita el desplazamiento
+ del 
+esquiador, Fa es igual a la fuerza de resistencia d
+el 
+aire y Fu es igual a la fuerza de rozamiento o fric
+ción 
+del suelo, las que se oponen. Fn=Fy se anulan. D: 
+desplazamiento del esquiador. D= Fx-(Fa+Fu). 
+ 
+Las leyes de Newton
+  
+              
+1ª Ley de Newton o ley de inercia
+  
+Si un cuerpo está en ausencia de fuerzas o permanec
+erá en reposo o se 
+moverá con movimiento rectilíneo uniforme, es decir
+, con velocidad 
+constante. 
+              
+2ª Ley de Newton
+  
+Indica la relación existente entre las fuerzas que 
+actúan sobre una 
+partícula y la aceleración resultante. Se expresa m
+ediante la ecuación 
+F= m x 
+a.
+ La fuerza de la gravedad de un cuerpo que pesa 60 
+Kg.: 
+F= 60 x 10 = 600 
+Newton
+.
