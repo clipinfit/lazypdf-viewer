@@ -1,18 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
+import * as pdfjsLib from "pdfjs-dist";
 import type {
+  DocumentInitParameters,
   PDFDocumentProxy,
   PDFPageProxy,
   RefProxy,
-  DocumentInitParameters,
 } from "pdfjs-dist/types/src/display/api";
-import { ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
-import * as pdfjsLib from "pdfjs-dist";
 import {
   EventBus,
-  PDFViewer,
   PDFLinkService,
+  PDFViewer,
 } from "pdfjs-dist/web/pdf_viewer.mjs";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -23,7 +24,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
 import "./styles.css";
 import "../../node_modules/pdfjs-dist/web/pdf_viewer.css";
 
@@ -107,7 +107,10 @@ class LazyPDFDocument {
   private _filterFactory = {
     addHighlightHCMFilter: () => "none",
   };
-  private optionalContentConfigPromiseCache = new Map<string, Promise<any>>();
+  private optionalContentConfigPromiseCache = new Map<
+    string,
+    Promise<unknown>
+  >();
   private loadOptions: DocumentInitParameters;
 
   constructor(manifest: Manifest, loadOptions: DocumentInitParameters) {
@@ -157,7 +160,7 @@ class LazyPDFDocument {
 
     const doc = await this.loadDocumentForPage(
       pageNumber,
-      manifestEntry.pdfUrl
+      manifestEntry.pdfUrl,
     );
     const page = await doc.getPage(1);
 
@@ -291,7 +294,9 @@ class LazyPDFDocument {
     return null;
   }
 
-  async getOptionalContentConfig(params?: { intent?: string }): Promise<any> {
+  async getOptionalContentConfig(params?: {
+    intent?: string;
+  }): Promise<unknown> {
     const intent = params?.intent || "display";
 
     // Map PDF.js intent strings to RenderingIntentFlag bitmask
@@ -351,9 +356,9 @@ class LazyPDFDocument {
 
   private async loadDocumentForPage(
     pageNumber: number,
-    pdfUrl: string
+    pdfUrl: string,
   ): Promise<PDFDocumentProxy> {
-    let doc = this.pageDocCache.get(pageNumber);
+    const doc = this.pageDocCache.get(pageNumber);
     if (doc) {
       return doc;
     }
@@ -385,7 +390,7 @@ class LazyPDFDocument {
   private async ensureDestinationsForPage(
     pageNumber: number,
     pdfUrl: string,
-    doc?: PDFDocumentProxy
+    doc?: PDFDocumentProxy,
   ): Promise<void> {
     if (this.scannedDestPages.has(pageNumber)) {
       return;
@@ -436,8 +441,8 @@ type ScaleChangingEvent = {
 };
 const percentageValues = new Set(
   ZOOM_PERCENTAGE_OPTIONS.map((item) =>
-    Number.parseFloat(item.value).toFixed(2)
-  )
+    Number.parseFloat(item.value).toFixed(2),
+  ),
 );
 
 const knownZoomValues = new Set<string>([
@@ -454,7 +459,7 @@ const knownZoomValues = new Set<string>([
  */
 function calculateNextZoomScale(
   currentScale: number,
-  direction: 1 | -1
+  direction: 1 | -1,
 ): number {
   // Convert current scale to percentage, round to nearest 10, adjust by 10, convert back
   const currentPercent = currentScale * 100;
@@ -573,7 +578,7 @@ export function LazyPDFViewer({
         if (percentageValues.has(normalizedValue)) {
           const matched = ZOOM_PERCENTAGE_OPTIONS.find(
             (option) =>
-              Number.parseFloat(option.value).toFixed(2) === normalizedValue
+              Number.parseFloat(option.value).toFixed(2) === normalizedValue,
           );
           setScalePreset(matched?.value ?? "custom");
         } else {
@@ -612,12 +617,12 @@ export function LazyPDFViewer({
       requestAnimationFrame(() => {
         console.log(
           "Applying initial scale after pagesinit:",
-          scalePresetRef.current
+          scalePresetRef.current,
         );
         if (scalePresetRef.current === "custom") {
           viewer.currentScale = Math.min(
             MAX_SCALE,
-            Math.max(MIN_SCALE, scaleRef.current)
+            Math.max(MIN_SCALE, scaleRef.current),
           );
         } else {
           viewer.currentScaleValue = scalePresetRef.current;
@@ -642,7 +647,7 @@ export function LazyPDFViewer({
 
     const lazyDoc = new LazyPDFDocument(
       manifest,
-      useRangeRequests ? CHUNKED_LOAD_OPTIONS : SINGLE_REQUEST_LOAD_OPTIONS
+      useRangeRequests ? CHUNKED_LOAD_OPTIONS : SINGLE_REQUEST_LOAD_OPTIONS,
     );
     lazyDocRef.current = lazyDoc;
 
@@ -833,7 +838,7 @@ export function LazyPDFViewer({
       window.removeEventListener("resize", handleResize);
       resizeObserver.disconnect();
     };
-  }, [scalePreset, viewerReady]);
+  }, [scalePreset, viewerReady, pageNum]);
 
   const goToPrevPage = () => {
     const viewer = viewerRef.current;
@@ -1000,3 +1005,4 @@ export function LazyPDFViewer({
     </div>
   );
 }
+

@@ -6,7 +6,7 @@ import "./index.css";
 //   "https://pub-513161e404dd4d40812c46297917c1ad.r2.dev/368_pages_276MB.pdf";
 
 const MANIFEST_URL =
-  "https://pub-513161e404dd4d40812c46297917c1ad.r2.dev/docs/94430318-16c8-4f67-b735-7297299ced55/manifest.json";
+  "https://pub-513161e404dd4d40812c46297917c1ad.r2.dev/documents/js76p480gfcjw1d3c1jdv8e0897vbpjb/manifest2.json";
 
 export function App() {
   // Use the lazy viewer with manifest for better performance
